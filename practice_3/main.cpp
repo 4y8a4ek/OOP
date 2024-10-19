@@ -1,14 +1,11 @@
 
 using namespace std;
-double inf = 1e15;
-double *data;              // Выборка для эмпирического
-int dataSize;              // Размер выборки
 #include <iostream>
 #include <cmath>
 #include <random>
 #include <cstdlib>
 #include <chrono>
-#include ".\Distributions\Mixture.h"
+#include ".\Distributions\Empirical.h"
 using namespace std;
 double *parametrs;         // Дисперсия, Мат ожидание, Асимметрия и Эксцесс
 double *inputed_parametrs; // Входные данные
@@ -38,7 +35,6 @@ double input_number(const double &lower, double higher)
     } while (number < lower || number > higher);
     return number;
 }
-
 bool troubleshoot(const int &arg, const int &lower, const int &higher)
 {
     if (arg < lower || arg > higher)
@@ -48,12 +44,10 @@ bool troubleshoot(const int &arg, const int &lower, const int &higher)
     }
     return false;
 }
-
 double gammaFunction(const double &y)
 {
     return tgamma(y); // Используем стандартную библиотеку для Гамма-функции
 }
-
 void print_actions()
 {
     cout << "Выберите желаемое действие с распределением:" << endl
@@ -71,7 +65,6 @@ void print_parametrs()
          << "Коэффициент эксцесса: " << parametrs[3] << endl
          << endl;
 }
-
 double random_number()
 {
     double r;
@@ -80,7 +73,6 @@ double random_number()
     while (r == 0. || r == 1.);
     return r;
 }
-
 double *gauss_input(int method, Primary &distribution)
 {
     double *result = new double[3];
@@ -135,6 +127,112 @@ double *mixed_input(int method, Mixture &mixture)
         break;
     }
     return result;
+}
+Empirical distribution(int dataSize)
+{
+    Primary distribution(0, 0, 0);
+    inputed_parametrs = gauss_input(1, distribution);
+    distribution.set_mu(inputed_parametrs[0]);
+    distribution.set_nu(inputed_parametrs[1]);
+    distribution.set_lambda(inputed_parametrs[2]);
+    Empirical emp1(distribution, dataSize);
+    return emp1;
+}
+Empirical mixture(int dataSize)
+{
+    Mixture mixture(0, 0, 0, 0, 0, 0, 0);
+    inputed_parametrs = mixed_input(1, mixture);
+    mixture.first_set_nu(inputed_parametrs[0]);
+    mixture.first_set_mu(inputed_parametrs[1]);
+    mixture.first_set_lambda(inputed_parametrs[2]);
+    mixture.second_set_nu(inputed_parametrs[3]);
+    mixture.second_set_mu(inputed_parametrs[4]);
+    mixture.second_set_lambda(inputed_parametrs[5]);
+    mixture.set_p(inputed_parametrs[6]);
+    Empirical emp2(mixture, dataSize);
+    return emp2;
+}
+Empirical emp(int dataSize)
+{
+    Empirical emp3(dataSize);
+    return emp3;
+}
+Empirical fromfile()
+{
+    string filename;
+    cout << "Введите путь к файлу с выборкой:" << endl;
+    cin >> filename;
+    Empirical emp4(filename);
+    return emp4;
+}
+Empirical generate_emp()
+{
+    int method;
+    cout << "Введите способ создания выборки:" << endl;
+    cout << "1 - Генерация выборки на основе основного распределения" << endl;
+    cout << "2 - Генерация выборки на основе смеси основных распределений" << endl;
+    cout << "3 - Ввод выборки с клавиатуры" << endl;
+    cout << "4 - Ввод выборки с файла" << endl;
+    cin >> method;
+    int dataSize;
+    if (method != 4)
+    {
+        cout << "Введите количество элементов в выборке: ";
+        dataSize = input_number(2, 10000000);
+    }
+    switch (method)
+    {
+    case 1:
+        return distribution(dataSize);
+        break;
+    case 2:
+        return mixture(dataSize);
+        break;
+    case 3:
+        return emp(dataSize);
+        break;
+    case 4:
+        return fromfile();
+        break;
+    }
+}
+void running_emp()
+{
+    Empirical emp = generate_emp();
+    double **borders_density;
+    int k;
+    while (IsRunning)
+    {
+        print_actions();
+        cout << "5 - Пересоздание выборки основываясь на текущей" << endl;
+        cout << "6 - Сохранение выборки в файл" << endl;
+        cin >> selected_action;
+        switch (selected_action)
+        {
+        case 1:
+            IsRunning = false;
+            break;
+        case 2:
+            cout << "Введите x0:";
+            x = input_number(-100000, 100000);
+            cout << "Плотность эмпирического распределения в точке x0 = " << x << " :  " << emp.get_density(x) << endl;
+            break;
+        case 3:
+            parametrs = emp.get_parametrs();
+            print_parametrs();
+            break;
+        case 4:
+            cout << "Смоделированная случайная величина : " << emp.random_value() << endl;
+            break;
+        case 5:
+            emp.modeling_new_data();
+            break;
+        case 6:
+            emp.save();
+            break;
+        }
+        troubleshoot(selected_action, 1, 6);
+    }
 }
 void running_gauss()
 {
@@ -217,12 +315,17 @@ void running_mixed()
         mixture.first_set_lambda(inputed_parametrs[5]);
         mixture.first_set_mu(inputed_parametrs[4]);
         mixture.first_set_nu(inputed_parametrs[3]);
-        mixture.set_p(inputed_parametrs[6]);    
+        mixture.set_p(inputed_parametrs[6]);
     }
     if (troubleshoot(method, 1, 2))
     {
         return;
     }
+    inputed_parametrs = mixture.get_mixture_values();
+    cout << "Введенные параметры распределений:" << endl
+         << "Первое распределение: nu = " << inputed_parametrs[0] << ", mu = " << inputed_parametrs[1] << ", lambda = " << inputed_parametrs[2] << endl
+         << "Второе распределение: nu = " << inputed_parametrs[3] << ", mu = " << inputed_parametrs[4] << ", lambda = " << inputed_parametrs[5] << endl
+         << "Параметр смеси p = " << inputed_parametrs[6] << endl;
     while (IsRunning)
     {
         print_actions();
@@ -252,228 +355,6 @@ void running_mixed()
             cin >> output;
             mixture.save(output);
             cout << "Запись завершена" << endl;
-            break;
-        }
-        troubleshoot(selected_action, 1, 5);
-    }
-}
-// Плотности 3 функции ( get_borders_and_densities функции для нахождения интервальной плотности в эмпирическом распределении)
-double **get_borders_and_densities(const double *information)
-{
-    double **result = new double *[3];
-    int k = log2(dataSize) + 1;
-    double *density = new double[k];
-    double *lower_borders = new double[k];
-    double *higher_borders = new double[k];
-    double mx = -inf;
-    double mn = inf;
-    for (int i = 0; i < dataSize; i++)
-    {
-        mx = max(information[i], mx);
-        mn = min(information[i], mn);
-    }
-    mx = static_cast<int>(ceil(mx));
-    mn = static_cast<int>(ceil(mn));
-    double step = fabs(mx - mn) / k;
-    int counter = 0;
-    for (int i = 0; i < k; i++)
-    {
-        for (int j = 0; j < dataSize; j++)
-        {
-            if (information[j] <= (mn + step * (i + 1)) && information[j] > (mn + step * i))
-            {
-                counter++;
-            }
-        }
-        lower_borders[i] = mn + step * i;
-        higher_borders[i] = mn + step * (i + 1);
-        density[i] = (double)counter / dataSize;
-        counter = 0;
-    }
-    result[0] = lower_borders;
-    result[1] = higher_borders;
-    result[2] = density;
-    return result;
-}
-double get_empirical_density()
-{
-    double result;
-    double **borders_density = new double *[3];
-    borders_density = get_borders_and_densities(data);
-    int k = 3.322 * log10(dataSize) + 10;
-    for (int i = 0; i < k; i++)
-    {
-        if (borders_density[0][i] < x && borders_density[1][i] >= x)
-        {
-            result = borders_density[2][i];
-            return result;
-        }
-    }
-    return 0;
-}
-// Расчет 4 параметров: Мат. ожидание, дисперсия, коэффициенты асимметрии и эксцесса 2 функции
-double *empirical_get_parametrs()
-{
-    double *result = new double[4];
-    double sum = 0.0;
-    for (int i = 0; i < dataSize; i++)
-    {
-        sum += data[i];
-    }
-    result[0] = sum / dataSize;
-    sum = 0.0;
-    for (int i = 0; i < dataSize; i++)
-    {
-        sum += pow(data[i] - result[0], 2);
-    }
-    result[1] = sum / dataSize;
-    sum = 0.0;
-    for (int i = 0; i < dataSize; i++)
-    {
-        sum += (pow(data[i] - result[0], 3));
-    }
-    result[2] = sum / (dataSize * pow(result[1], 1.5));
-    sum = 0.0;
-    for (int i = 0; i < dataSize; i++)
-    {
-        sum += (pow(data[i] - result[0], 4));
-    }
-    result[3] = sum / (dataSize * pow(result[1], 2)) - 3;
-    return result;
-}
-// Моделирование случайной величины 4 функции (transform_data - сдвиг-масштабное преобразование)
-
-double *transform_data(const double &shift, const double &scale)
-{
-    double *result = new double[dataSize];
-    for (int i = 0; i < dataSize; i++)
-    {
-        result[i] = data[i] / scale - shift;
-    }
-    return result;
-}
-double empirical_random_value()
-{
-    double scale = 10;
-    double curr = -inf;
-    for (int i = 0; i < dataSize; i++)
-    {
-        if (data[i] > curr)
-            curr = data[i];
-    }
-    double shift = curr / scale + 1;
-    double *TransformedData = new double[dataSize];
-    TransformedData = transform_data(shift, scale);
-    int index;
-    index = random_number() * scale;
-    return (TransformedData[index] + shift) * scale;
-}
-// Перемоделирование выборки
-double create_noise()
-{
-    return -0.001 + static_cast<double>(rand()) / RAND_MAX * (0.002);
-}
-double *modeling_new_data()
-{
-    double *result = new double[dataSize];
-    sort(data, data + dataSize);
-    int index;
-    for (int i = 0; i < dataSize; i++)
-    {
-        index = static_cast<int>(random_number() * dataSize);
-        if (index >= dataSize)
-            index = dataSize - 1;
-        result[i] = data[index] + create_noise();
-    }
-    return result;
-}
-// Задание данных 3 функции
-double *generate_emp()
-{
-    int method;
-    cout << "Введите способ создания выборки:" << endl;
-    cout << "1 - Генерация выборки на основе основного распределения" << endl;
-    cout << "2 - Генерация выборки на основе смеси основных распределений" << endl;
-    cout << "3 - Ввод выборки с клавиатуры" << endl;
-    cin >> method;
-    cout << "Введите количество элементов в выборке: ";
-    dataSize = input_number(2, 10000000);
-    if (troubleshoot(method, 1, 3))
-    {
-        return NULL;
-    };
-    Primary distribution(0, 0, 0);
-    Mixture mixture(0, 0, 0, 0, 0, 0, 0);
-    double *emp = new double[dataSize];
-    switch (method)
-    {
-    case 1:
-        inputed_parametrs = gauss_input(1, distribution);
-        distribution.set_mu(inputed_parametrs[0]);
-        distribution.set_nu(inputed_parametrs[1]);
-        distribution.set_lambda(inputed_parametrs[2]);
-        for (int i = 0; i < dataSize; i++)
-        {
-            emp[i] = distribution.random_value();
-        }
-        break;
-    case 2:
-        inputed_parametrs = mixed_input(1, mixture);
-        mixture.first_set_nu(inputed_parametrs[0]);
-        mixture.first_set_mu(inputed_parametrs[1]);
-        mixture.first_set_lambda(inputed_parametrs[2]);
-        mixture.second_set_nu(inputed_parametrs[3]);
-        mixture.second_set_mu(inputed_parametrs[4]);
-        mixture.second_set_lambda(inputed_parametrs[5]);
-        mixture.set_p(inputed_parametrs[6]);
-        for (int i = 0; i < dataSize; i++)
-        {
-            emp[i] = mixture.random_value();
-        }
-        break;
-    case 3:
-        for (int i = 0; i < dataSize; i++)
-        {
-            cout << "Введите " << i + 1 << " элемент: ";
-            cin >> emp[i];
-        }
-    }
-    return emp;
-}
-// Основные функции для работы программы (front)
-void running_emp()
-{
-    data = generate_emp();
-    if (data == NULL)
-    {
-        return;
-    };
-    double **borders_density;
-    int k;
-    while (IsRunning)
-    {
-        print_actions();
-        cout << "5 - Пересоздание выборки основываясь на текущей" << endl;
-        cin >> selected_action;
-        switch (selected_action)
-        {
-        case 1:
-            IsRunning = false;
-            break;
-        case 2:
-            cout << "Введите x0:";
-            x = input_number(-100000, 100000);
-            cout << "Плотность эмпирического распределения в точке x0 = " << x << " :  " << get_empirical_density() << endl;
-            break;
-        case 3:
-            parametrs = empirical_get_parametrs();
-            print_parametrs();
-            break;
-        case 4:
-            cout << "Смоделированная случайная величина : " << empirical_random_value() << endl;
-            break;
-        case 5:
-            data = modeling_new_data();
             break;
         }
         troubleshoot(selected_action, 1, 5);

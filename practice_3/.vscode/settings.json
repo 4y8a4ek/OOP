@@ -61,6 +61,9 @@
     "iostream": "cpp",
     "random": "cpp",
     "cmath": "cpp",
-    "chrono": "cpp"
+    "chrono": "cpp",
+    "new": "cpp",
+    "fstream": "cpp",
+    "iosfwd": "cpp"
   }
 }
